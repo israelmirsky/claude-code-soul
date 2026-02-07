@@ -40,7 +40,7 @@ Session Start                          Pre-Compaction
 ## Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/claude-code-soul.git
+git clone https://github.com/israelmirsky/claude-code-soul.git
 cd claude-code-soul
 chmod +x install.sh
 ./install.sh
