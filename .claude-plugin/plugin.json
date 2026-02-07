@@ -1,0 +1,5 @@
+{
+  "name": "soul",
+  "description": "Identity persistence and memory continuity across Claude Code sessions — survives context compaction",
+  "version": "1.0.0"
+}
