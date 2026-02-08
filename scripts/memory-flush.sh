@@ -36,7 +36,7 @@ if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
   case "$TRANSCRIPT_PATH" in
     "$HOME"/*|/tmp/*|/private/tmp/*)
       RECENT_CONTEXT=$(tail -"$TRANSCRIPT_LINES" "$TRANSCRIPT_PATH" 2>/dev/null | \
-        jq -r 'select(.role == "assistant") | .content[] | select(.type == "text") | .text' 2>/dev/null | \
+        jq -r 'select(.type == "assistant") | .message.content[] | select(.type == "text") | .text' 2>/dev/null | \
         tail -c "$TRANSCRIPT_MAX_CHARS" || echo "")
       ;;
     *)
