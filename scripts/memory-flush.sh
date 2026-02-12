@@ -13,10 +13,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 
 # ---------- dependency check ----------
-if ! command -v jq &>/dev/null; then
-  echo '{"error": "jq is required but not installed. Install: brew install jq"}' >&2
-  exit 1
-fi
+for cmd in jq python3; do
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "{\"error\": \"$cmd is required but not installed.\"}" >&2
+    exit 1
+  fi
+done
 
 # ---------- parse hook input ----------
 INPUT=$(cat)
@@ -31,13 +33,16 @@ mkdir -p "$MEMORY_DIR"
 
 # ---------- extract transcript context (with validation) ----------
 RECENT_CONTEXT=""
-if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
-  # Security: only read files under $HOME or /tmp (where Claude Code writes transcripts)
-  case "$TRANSCRIPT_PATH" in
+if [ -n "$TRANSCRIPT_PATH" ] && [ -e "$TRANSCRIPT_PATH" ]; then
+  # Resolve symlinks before validation to prevent path-prefix bypasses.
+  RESOLVED_TRANSCRIPT_PATH=$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$TRANSCRIPT_PATH" 2>/dev/null || echo "")
+  case "$RESOLVED_TRANSCRIPT_PATH" in
     "$HOME"/*|/tmp/*|/private/tmp/*)
-      RECENT_CONTEXT=$(tail -"$TRANSCRIPT_LINES" "$TRANSCRIPT_PATH" 2>/dev/null | \
-        jq -r 'select(.type == "assistant") | .message.content[] | select(.type == "text") | .text' 2>/dev/null | \
-        tail -c "$TRANSCRIPT_MAX_CHARS" || echo "")
+      if [ -f "$RESOLVED_TRANSCRIPT_PATH" ]; then
+        RECENT_CONTEXT=$(tail -"$TRANSCRIPT_LINES" "$RESOLVED_TRANSCRIPT_PATH" 2>/dev/null | \
+          jq -r 'select(.type == "assistant") | .message.content[] | select(.type == "text") | .text' 2>/dev/null | \
+          tail -c "$TRANSCRIPT_MAX_CHARS" || echo "")
+      fi
       ;;
     *)
       RECENT_CONTEXT="[transcript path outside allowed directories — skipped]"
@@ -72,13 +77,14 @@ fi
 chmod 600 "$DAILY_LOG"
 
 # ---------- output for Claude Code ----------
-cat << JSONEOF
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PreCompact",
-    "additionalContext": "$PLUGIN_NAME MEMORY FLUSH: Context was auto-saved to $DAILY_LOG before compaction. After compaction, read your soul file and today's session log to restore identity and context."
-  }
-}
-JSONEOF
+jq -n \
+  --arg plugin_name "$PLUGIN_NAME" \
+  --arg daily_log "$DAILY_LOG" \
+  '{
+    hookSpecificOutput: {
+      hookEventName: "PreCompact",
+      additionalContext: ($plugin_name + " MEMORY FLUSH: Context was auto-saved to " + $daily_log + " before compaction. After compaction, read your soul file and today'\''s session log to restore identity and context.")
+    }
+  }'
 
 exit 0

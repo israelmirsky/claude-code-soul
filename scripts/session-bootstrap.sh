@@ -32,8 +32,9 @@ LATEST_LOG=""
 if [ -f "$DAILY_LOG" ]; then
   LATEST_LOG="$DAILY_LOG"
 elif [ -d "$MEMORY_DIR" ]; then
-  LATEST_LOG=$(find "$MEMORY_DIR" -maxdepth 1 -name '*.md' -type f -print0 2>/dev/null | \
-    xargs -0 ls -t 2>/dev/null | head -1 || echo "")
+  if compgen -G "$MEMORY_DIR/*.md" > /dev/null; then
+    LATEST_LOG=$(ls -1t "$MEMORY_DIR"/*.md 2>/dev/null | head -1 || echo "")
+  fi
 fi
 
 # ---------- build bootstrap context ----------
